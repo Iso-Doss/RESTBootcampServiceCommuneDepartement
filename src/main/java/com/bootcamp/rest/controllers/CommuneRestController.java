@@ -1,68 +1,64 @@
+package com.bootcamp.rest.controllers;
 
-package com.bootcamp.servicecrud.rest.controller;
-
-import com.bootcamp.jpa.repositories.BaseRepository;
-import com.bootcamp.servicecrud.jpa.entities.Commune;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
+import com.bootcamp.AppConstants;
+import io.swagger.annotations.*;
 import java.sql.SQLException;
-import java.util.List;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Link;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
+import java.util.*;
+import javax.ws.rs.*;
+import javax.ws.rs.core.*;
 
+import com.bootcamp.entities.*;
+import com.bootcamp.jpa.*;
+import java.beans.*;
+import java.lang.reflect.*;
+import javax.ws.rs.QueryParam;
 
-@Path("/commune")
+@Path("/communes")
 @Api(value = "communes", description = "web service on all the communes available")
 public class CommuneRestController {
 
-    BaseRepository<Commune> communeRepository = new BaseRepository("tpRest", Commune.class);
+    private CommuneRepository communeRepository = new CommuneRepository(AppConstants.PERSISTENCE_UNIT);
 
     //Annotation JAX-RS2
     @Context
-    UriInfo uriInfo;
+    private UriInfo uriInfo;
 
     /**
-     *URI d'acces a toutes les communes
+     * URI d'acces a toutes les communes
+     *
      * @return
      * @throws java.sql.SQLException
      */
     @GET
-    @Path("/list")
+    @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(value = "Get all the communes")
-    public List<Commune> getCommunes() throws SQLException {
-        //obtenir la liste des communes de la base de donnees
-        List<Commune> communes = communeRepository.findAll();
-        return communes;
+    public Response getList() throws SQLException {
+        List<Commune> communes = getCommuneRepository().findAll();
+
+        if (communes == null) {
+            return Response.status(404).entity(communes).build();
+        } else {
+            return Response.status(200).entity(communes).build();
+        }
     }
 
     /**
-     *URI d'acces a une commune
+     * URI d'acces a une commune grace a son id
+     *
      * @param id
      * @return
      * @throws java.sql.SQLException
      */
     @GET
-    @Path("/commune/{id}")
+    @Path("/{id}")
     @ApiOperation(value = "Get a city knowing its id")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getById(@ApiParam(value = "Id of the city", required = true) @PathParam("id") int id) throws SQLException {
-        Commune commune = communeRepository.findByPropertyUnique("id", id);
+        Commune commune = getCommuneRepository().findByPropertyUnique("id", id);
 
         if (commune != null) {
-            commune.setSelf(
-                    Link.fromUri(uriInfo.getAbsolutePath())
+            commune.setSelf(Link.fromUri(getUriInfo().getAbsolutePath())
                     .rel("self")
                     .type("GET")
                     .build());
@@ -71,23 +67,23 @@ public class CommuneRestController {
             return Response.status(404).entity(commune).build();
         }
     }
-    
+
     /**
-     * methode de recherche sur un le nom du departement
-     * @param nom
+     * methode de recherche sur champ du departement
+     *
+     * @param champs
+     * @param valeur
      * @return
      * @throws SQLException
      */
     @GET
-    @Path("/departement/{nom}")
+    @Path("/parametre/{champs}/{valeur}")
     @ApiOperation(value = "Get a city knowing its name")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getByNom(@ApiParam(value = "Name of the city", required = true) @PathParam("nom") String nom) throws SQLException {
-        Commune commune = communeRepository.findByPropertyUnique("nom", nom);
-        
+    public Response getByNom(@ApiParam(value = "Champs de recherche", required = true) @PathParam("champs") String champs, @ApiParam(value = "valeur du champs", required = true) @PathParam("valeur") String valeur) throws SQLException {
+        Commune commune = getCommuneRepository().findByPropertyUnique(champs, valeur);
         if (commune != null) {
-            commune.setSelf(
-                    Link.fromUri(uriInfo.getAbsolutePath())
+            commune.setSelf(Link.fromUri(getUriInfo().getAbsolutePath())
                     .rel("self")
                     .type("GET")
                     .build());
@@ -99,6 +95,7 @@ public class CommuneRestController {
 
     /**
      * methode de creation de la commune
+     *
      * @param commune
      * @return
      */
@@ -106,18 +103,19 @@ public class CommuneRestController {
     @Path("/create")
     @ApiOperation(value = "Create a new city")
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response create( @ApiParam(value = "The city entity", required = true) Commune commune) {
+    public Response create(@ApiParam(value = "The city entity", required = true) Commune commune) {
         String output = " Felicitations objet cree avec succes : ";
         try {
-            communeRepository.create(commune);
+            getCommuneRepository().create(commune);
             return Response.status(200).entity(output + commune.getNom()).build();
         } catch (SQLException ex) {
             return Response.status(404).entity("Erreur: Objet non cree").build();
         }
     }
-    
+
     /**
      * methode de modification de la commune
+     *
      * @param commune
      * @return
      */
@@ -128,16 +126,39 @@ public class CommuneRestController {
     public Response update(@ApiParam(value = "The city entity", required = true) Commune commune) {
         String output = " Felicitations. Modification effectuee avec succes pour : ";
         try {
-            communeRepository.update(commune);
+            getCommuneRepository().update(commune);
             return Response.status(200).entity(output + commune.getNom()).build();
         } catch (SQLException ex) {
             return Response.status(404).entity("Erreur: Objet non mis a jour").build();
         }
 
     }
-//
+
+    @GET
+    @Path("/reponse_partiel/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getByIdParam(@PathParam("id") int id, @QueryParam("fields") String fields) throws SQLException, IllegalArgumentException, IllegalAccessException, IntrospectionException, InvocationTargetException {
+        String[] fieldArray = fields.split(",");
+        //CommuneRepository communeRepository = new CommuneRepository("punit-mysql");
+        Commune commune = getCommuneRepository().findById(id);
+        Map<String, Object> responseMap = new HashMap<>();
+        PropertyDescriptor[] propertyDescriptors = Introspector.getBeanInfo(Commune.class).getPropertyDescriptors();
+
+        for (PropertyDescriptor propertyDescriptor : propertyDescriptors) {
+
+            Method method = propertyDescriptor.getReadMethod();
+            if (check(fieldArray, propertyDescriptor.getName())) {
+                responseMap.put(propertyDescriptor.getName(), method.invoke(commune));
+            }
+            System.out.println(method.invoke(commune));
+        }
+        return Response.status(200).entity(responseMap).build();
+    }
+
     /**
-     * methode permettant de verifier si un attribut fait partie d'une liste de champ indiques
+     * methode permettant de verifier si un attribut fait partie d'une liste de
+     * champ indiques
+     *
      * @param fields
      * @param field
      * @return
@@ -150,5 +171,33 @@ public class CommuneRestController {
             }
         }
         return false;
+    }
+
+    /**
+     * @return the communeRepository
+     */
+    public CommuneRepository getCommuneRepository() {
+        return communeRepository;
+    }
+
+    /**
+     * @param communeRepository the communeRepository to set
+     */
+    public void setCommuneRepository(CommuneRepository communeRepository) {
+        this.communeRepository = communeRepository;
+    }
+
+    /**
+     * @return the uriInfo
+     */
+    public UriInfo getUriInfo() {
+        return uriInfo;
+    }
+
+    /**
+     * @param uriInfo the uriInfo to set
+     */
+    public void setUriInfo(UriInfo uriInfo) {
+        this.uriInfo = uriInfo;
     }
 }
