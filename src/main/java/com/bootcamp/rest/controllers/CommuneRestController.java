@@ -32,7 +32,17 @@ public class CommuneRestController {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Get all the communes")
+    @ApiOperation(
+            value = "Liste",
+            notes = "Liste des Communes",
+            response = void.class,
+            responseContainer = "Bailleur"
+    )
+    @ApiResponses({
+        @ApiResponse(code = 201, message = "Communes trouvés")
+        ,
+     @ApiResponse(code = 404, message = "Aucun Communes trouvés")
+    })
     public Response getList() throws SQLException {
         List<Commune> communes = getCommuneRepository().findAll();
 
@@ -52,7 +62,17 @@ public class CommuneRestController {
      */
     @GET
     @Path("/{id}")
-    @ApiOperation(value = "Get a city knowing its id")
+    @ApiOperation(
+            value = "Commune grave a son id ",
+            notes = "Commune grave a son id",
+            response = void.class,
+            responseContainer = "Commune"
+    )
+    @ApiResponses({
+        @ApiResponse(code = 201, message = "Communes trouvés")
+        ,
+     @ApiResponse(code = 404, message = "Aucun Communes trouvés")
+    })
     @Produces(MediaType.APPLICATION_JSON)
     public Response getById(@ApiParam(value = "Id of the city", required = true) @PathParam("id") int id) throws SQLException {
         Commune commune = getCommuneRepository().findByPropertyUnique("id", id);
@@ -80,17 +100,23 @@ public class CommuneRestController {
     @Path("/parametre/{champs}/{valeur}")
     @ApiOperation(value = "Get a city knowing its name")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getByNom(@ApiParam(value = "Champs de recherche", required = true) @PathParam("champs") String champs, @ApiParam(value = "valeur du champs", required = true) @PathParam("valeur") String valeur) throws SQLException {
-        Commune commune = getCommuneRepository().findByPropertyUnique(champs, valeur);
-        if (commune != null) {
-            commune.setSelf(Link.fromUri(getUriInfo().getAbsolutePath())
-                    .rel("self")
-                    .type("GET")
-                    .build());
-            return Response.accepted(commune).links(commune.getSelf()).build();
+    public Response getListByParam(@PathParam("champs") String champs, @PathParam("valeur") String valeur) throws SQLException {
+        List<Commune> communes = getCommuneRepository().findByProperty(champs, valeur);
+
+        if (communes != null) {
+            for (int i = 0; i < communes.size(); i++) {
+                communes.get(i).setSelf(Link.fromUri(getUriInfo().getAbsolutePath())
+                        .rel("self")
+                        .type("GET")
+                        .build());
+                return Response.accepted(communes.get(i)).links(communes.get(i).getSelf()).build();
+
+            }
+            return Response.status(200).entity(communes).build();
         } else {
-            return Response.status(404).entity(commune).build();
+            return Response.status(404).entity(communes).build();
         }
+
     }
 
     /**

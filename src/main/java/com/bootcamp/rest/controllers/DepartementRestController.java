@@ -82,15 +82,18 @@ public class DepartementRestController {
     @ApiOperation(value = "Get a city knowing its name")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getByNom(@ApiParam(value = "Champs de recherche", required = true) @PathParam("champs") String champs, @ApiParam(value = "valeur du champs", required = true) @PathParam("valeur") String valeur) throws SQLException {
-        Departement departement = getDepartementRepository().findByPropertyUnique(champs, valeur);
-        if (departement != null) {
-            departement.setSelf(Link.fromUri(getUriInfo().getAbsolutePath())
-                    .rel("self")
-                    .type("GET")
-                    .build());
-            return Response.accepted(departement).links(departement.getSelf()).build();
+        List<Departement> departements = getDepartementRepository().findByProperty(champs, valeur);
+        if (departements != null) {
+            for (int i = 0; i < departements.size(); i++) {
+                departements.get(i).setSelf(Link.fromUri(getUriInfo().getAbsolutePath())
+                        .rel("self")
+                        .type("GET")
+                        .build());
+                return Response.accepted(departements.get(i)).links(departements.get(i).getSelf()).build();
+            }
+            return Response.status(200).entity(departements).build();
         } else {
-            return Response.status(404).entity(departement).build();
+            return Response.status(404).entity(departements).build();
         }
     }
 
